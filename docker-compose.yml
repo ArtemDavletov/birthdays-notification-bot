@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+  birthdays_db:
+    container_name: birthdays_db
+    restart: always
+    image: postgres:10
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=1234
