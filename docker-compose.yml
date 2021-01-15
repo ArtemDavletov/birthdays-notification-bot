@@ -1,7 +1,7 @@
 version: '3.7'
 services:
-  birthdays_db:
-    container_name: birthdays_db
+  birthdays_db2:
+    container_name: birthdays_db2
     restart: always
     image: postgres:10
     ports:

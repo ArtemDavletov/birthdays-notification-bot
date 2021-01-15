@@ -23,7 +23,17 @@ class Birthday(Base):
     id = Column(UUID(as_uuid=True), unique=True, primary_key=True, default=uuid.uuid4)
     chat_id = Column(Integer)
     name = Column(String)
-    birthday = Column(Integer)
+    year = Column(Integer)
+    month = Column(Integer)
+    day = Column(Integer)
+
+
+class Notification(Base):
+    __tablename__ = 'notification'
+
+    id = Column(UUID(as_uuid=True), unique=True, primary_key=True, default=uuid.uuid4)
+    chat_id = Column(Integer)
+    time = Column(String)
 
 
 Base.metadata.create_all(bind=engine)
