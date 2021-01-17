@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 
@@ -6,7 +7,6 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.dispatcher.webhook import SendMessage
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from config import config
@@ -46,8 +46,8 @@ async def all(message: types.Message):
     else:
         # for b in birthdays:
         await message.reply(',\n'.join(map(lambda b: str(b.name) + ' ' +
-                                                     str(b.day) + ' ' +
-                                                     str(b.month) + ' ' +
+                                                     str(b.day) + '.' +
+                                                     str(b.month) + '.' +
                                                      str(b.year), birthdays)))
         # await message.reply(str(b.name) + ' ' + str(b.birthday) + ',\n')
 
@@ -133,18 +133,23 @@ async def update_time_step2(message: types.Message, state: FSMContext):
         db.add(notification)
         db.commit()
     else:
-        db.query(Notification).filter(Notification.chat_id == message.chat.id).update(time=message.text)
+        db.query(Notification).filter(Notification.chat_id == message.chat.id).update({'time': message.text})
         db.commit()
 
     await state.finish()
 
 
 async def send_notification(birthday, curr_year):
+    # if birthday.year == '0000':
+    #     SendMessage(chat_id=birthday.chat_id,
+    #                 text=f'Today is the {curr_year - birthday.year} birthday of {birthday.name}')
+    # else:
+    #     SendMessage(chat_id=birthday.chat_id, text=f'Today is the birthday of {birthday.name}')
     if birthday.year == '0000':
-        SendMessage(chat_id=birthday.chat_id,
-                    text=f'Today is the {curr_year - birthday.year} birthday of {birthday.name}')
+        await bot.send_message(chat_id=birthday.chat_id,
+                               text=f'Today is the {curr_year - birthday.year} birthday of {birthday.name}')
     else:
-        SendMessage(chat_id=birthday.chat_id, text=f'Today is the birthday of {birthday.name}')
+        await bot.send_message(chat_id=birthday.chat_id, text=f'Today is the birthday of {birthday.name}')
 
 
 async def job():
@@ -152,16 +157,36 @@ async def job():
     curr_month = str(datetime.today().month)
     curr_year = str(datetime.today().year)
 
-    birthdays = db.query(Birthday).filter(str(Birthday.month) == curr_month,
-                                          str(Birthday.day) == curr_day).all()
+    birthdays = db.query(Birthday).filter(Birthday.month == int(curr_month),
+                                          Birthday.day == int(curr_day)).all()
 
     for b in birthdays:
-        aioschedule.every().day.at('09:00').do(send_notification(b, curr_year))
+        aioschedule.every(1).day.at('00:55').do(lambda: send_notification(b, curr_year))
 
-
-aioschedule.every().day.at('00:00').do(job)
 
 # TODO: 1)Write checking correct data 2) Add timezone 3) Tune time of notification
 
+
+async def scheduler():
+    aioschedule.every().day.at('00:54').do(job)
+
+    # loop = asyncio.get_event_loop()
+    while True:
+        # loop.run_until_complete(aioschedule.run_pending())
+        # time.sleep(1)
+        await aioschedule.run_pending()
+        await asyncio.sleep(1)
+
+
+DELAY = 10
+
+
+def repeat(coro, loop):
+    asyncio.ensure_future(coro(), loop=loop)
+    loop.call_later(DELAY, repeat, coro, loop)
+
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    loop = asyncio.get_event_loop()
+    loop.call_later(DELAY, repeat, scheduler, loop)
+    executor.start_polling(dp, skip_updates=True, loop=loop)
